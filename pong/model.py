@@ -5,6 +5,7 @@
 # - score tracking
 # - ball movement and collisions
 # - CPU behavior in single-player mode
+# - unlockable paddle colors and survival-based high score
 
 import math
 import random
