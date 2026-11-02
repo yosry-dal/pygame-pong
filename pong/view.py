@@ -10,7 +10,7 @@
 
 import pygame
 
-from .model import WINDOW_HEIGHT, WINDOW_WIDTH
+from .model import PADDLE_COLORS, WINDOW_HEIGHT, WINDOW_WIDTH
 
 
 class PongView:
@@ -47,8 +47,8 @@ class PongView:
         right = model.right_paddle.rect
         ball = model.ball.rect
 
-        pygame.draw.rect(self.screen, self.foreground_color, left)
-        pygame.draw.rect(self.screen, self.foreground_color, right)
+        pygame.draw.rect(self.screen, model.left_paddle.color, left)
+        pygame.draw.rect(self.screen, model.right_paddle.color, right)
         pygame.draw.ellipse(self.screen, self.accent_color, ball)
 
     def draw_scores(self, model) -> None:
@@ -69,7 +69,14 @@ class PongView:
         rect = text.get_rect(center=(WINDOW_WIDTH / 2, 20))
         self.screen.blit(text, rect)
 
-    def draw_menu(self, prompt: str) -> None:
+    def draw_hud(self, current_time: float, best_time: float) -> None:
+        """Display the live survival timer and stored best score."""
+        label = f"Run: {current_time:.1f}s   Best: {best_time:.1f}s"
+        text = self.ui_font.render(label, True, self.foreground_color)
+        rect = text.get_rect(center=(WINDOW_WIDTH / 2, 570))
+        self.screen.blit(text, rect)
+
+    def draw_menu(self, prompt: str, best_time: float = 0.0) -> None:
         """Draw the menu screen with mode selection instructions."""
         self.draw_background()
 
@@ -77,8 +84,12 @@ class PongView:
         title_rect = title.get_rect(center=(WINDOW_WIDTH / 2, 150))
         self.screen.blit(title, title_rect)
 
+        best_text = self.ui_font.render(f"Best Survival: {best_time:.1f}s", True, self.foreground_color)
+        best_rect = best_text.get_rect(center=(WINDOW_WIDTH / 2, 240))
+        self.screen.blit(best_text, best_rect)
+
         prompt_text = self.ui_font.render(prompt, True, self.foreground_color)
-        prompt_rect = prompt_text.get_rect(center=(WINDOW_WIDTH / 2, 280))
+        prompt_rect = prompt_text.get_rect(center=(WINDOW_WIDTH / 2, 290))
         self.screen.blit(prompt_text, prompt_rect)
 
         instructions = [
@@ -92,25 +103,64 @@ class PongView:
             rect = surface.get_rect(center=(WINDOW_WIDTH / 2, 340 + index * 40))
             self.screen.blit(surface, rect)
 
-    def draw_result(self, model, mode) -> None:
+    def draw_paddle_selector(self, colors, selected_index: int, best_time: float) -> None:
+        """Show the paddle color selection menu for single-player mode."""
+        self.draw_background()
+
+        title = self.title_font.render("PADDLE COLOR", True, self.foreground_color)
+        title_rect = title.get_rect(center=(WINDOW_WIDTH / 2, 120))
+        self.screen.blit(title, title_rect)
+
+        best_text = self.ui_font.render(f"Best Survival: {best_time:.1f}s", True, self.foreground_color)
+        best_rect = best_text.get_rect(center=(WINDOW_WIDTH / 2, 160))
+        self.screen.blit(best_text, best_rect)
+
+        for index, color_name in enumerate(colors):
+            label = f"{index + 1}. {color_name.title()}"
+            if index == selected_index:
+                label = f"> {label} <"
+                color = PADDLE_COLORS[color_name]
+            else:
+                color = self.foreground_color
+
+            surface = self.ui_font.render(label, True, color)
+            rect = surface.get_rect(center=(WINDOW_WIDTH / 2, 240 + index * 50))
+            self.screen.blit(surface, rect)
+
+        key_hint = self.ui_font.render("Left/Right to choose, Enter to confirm", True, self.foreground_color)
+        key_rect = key_hint.get_rect(center=(WINDOW_WIDTH / 2, 520))
+        self.screen.blit(key_hint, key_rect)
+
+    def draw_result(self, model, mode, best_time: float) -> None:
         """Draw the end-of-match screen with winner text and instructions."""
         self.draw_background()
         self.draw_scores(model)
         self.draw_paddles_and_ball(model)
         self.draw_mode_label(mode)
 
+        if mode == "single_player":
+            survival_message = self.ui_font.render(f"Survival Time: {model.current_survival_time:.1f}s", True, self.foreground_color)
+            survival_rect = survival_message.get_rect(center=(WINDOW_WIDTH / 2, 250))
+            self.screen.blit(survival_message, survival_rect)
+
+            best_message = self.ui_font.render(f"Best Survival: {best_time:.1f}s", True, self.foreground_color)
+            best_rect = best_message.get_rect(center=(WINDOW_WIDTH / 2, 290))
+            self.screen.blit(best_message, best_rect)
+
         winner = model.winner
         text = self.title_font.render(f"{winner} Wins!", True, self.foreground_color)
-        text_rect = text.get_rect(center=(WINDOW_WIDTH / 2, 250))
+        text_rect = text.get_rect(center=(WINDOW_WIDTH / 2, 190))
         self.screen.blit(text, text_rect)
 
         prompt = self.ui_font.render("Press R to restart or M for menu", True, self.foreground_color)
         prompt_rect = prompt.get_rect(center=(WINDOW_WIDTH / 2, 330))
         self.screen.blit(prompt, prompt_rect)
 
-    def render(self, model, mode) -> None:
+    def render(self, model, mode, best_time: float) -> None:
         """Draw the current game state during active play."""
         self.draw_background()
         self.draw_scores(model)
         self.draw_paddles_and_ball(model)
         self.draw_mode_label(mode)
+        if mode == "single_player":
+            self.draw_hud(model.current_survival_time, best_time)
