@@ -21,6 +21,26 @@ BALL_SIZE = 16
 BALL_SPEED = 420
 WINNING_SCORE = 7
 
+# Paddle colors available in the game.
+PADDLE_COLORS = {
+    "white": (255, 255, 255),
+    "red": (255, 90, 90),
+    "green": (90, 255, 130),
+    "blue": (90, 170, 255),
+    "purple": (190, 120, 255),
+    "gold": (255, 200, 90),
+}
+
+# Each color unlocks after reaching the matching survival time.
+PADDLE_UNLOCKS = {
+    "white": 0.0,
+    "red": 5.0,
+    "green": 12.0,
+    "blue": 20.0,
+    "purple": 35.0,
+    "gold": 60.0,
+}
+
 
 class GameMode(str):
     """Represents the available game modes."""
@@ -35,10 +55,14 @@ class GameMode(str):
 class Paddle:
     """Represents one paddle in the game."""
 
-    def __init__(self, x: float, y: float) -> None:
+    def __init__(self, x: float, y: float, color_name: str = "white") -> None:
         # pygame.Rect stores the paddle's position and size.
         self.rect = pygame.Rect(x, y, PADDLE_WIDTH, PADDLE_HEIGHT)
         self.speed = PADDLE_SPEED
+
+        # Use a named color key so the color can be changed easily.
+        self.color_name = color_name
+        self.color = PADDLE_COLORS.get(color_name, PADDLE_COLORS["white"])
 
     def move(self, direction: int, dt: float) -> None:
         """Move the paddle up or down.
@@ -95,14 +119,16 @@ class Ball:
 class GameModel:
     """Contains the game state and all game rules for a match."""
 
-    def __init__(self, mode: GameMode) -> None:
+    def __init__(self, mode: GameMode, player_color: str = "white") -> None:
         self.mode = mode
+        self.current_survival_time = 0.0
 
         # Create both paddles.
-        self.left_paddle = Paddle(30, WINDOW_HEIGHT / 2 - PADDLE_HEIGHT / 2)
+        self.left_paddle = Paddle(30, WINDOW_HEIGHT / 2 - PADDLE_HEIGHT / 2, player_color)
         self.right_paddle = Paddle(
             WINDOW_WIDTH - 30 - PADDLE_WIDTH,
             WINDOW_HEIGHT / 2 - PADDLE_HEIGHT / 2,
+            "white",
         )
 
         # Create the ball and track scoreboard values.
@@ -182,17 +208,22 @@ class GameModel:
 
     def update_ball(self, dt: float) -> None:
         """Move the ball, check collisions, and score points."""
+        if self.mode == GameMode.SINGLE_PLAYER:
+            self.current_survival_time += dt
+
         self.ball.update(dt)
         self.resolve_ball_collisions()
 
         # If the ball goes off the left side, the right side scores.
         if self.ball.rect.left <= 0:
             self.right_score += 1
+            self.current_survival_time = 0.0
             self.ball.reset()
 
         # If the ball goes off the right side, the left side scores.
         elif self.ball.rect.right >= WINDOW_WIDTH:
             self.left_score += 1
+            self.current_survival_time = 0.0
             self.ball.reset()
 
         # Update the winner once a player reaches the winning score.
@@ -204,6 +235,7 @@ class GameModel:
         self.left_score = 0
         self.right_score = 0
         self.winner = None
+        self.current_survival_time = 0.0
 
         self.ball.reset()
         self.left_paddle.rect.y = WINDOW_HEIGHT / 2 - PADDLE_HEIGHT / 2
